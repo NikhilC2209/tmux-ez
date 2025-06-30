@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+if [ ! -n "$TMUX" ]; then
+    echo "Not in a tmux session"
+    exit
+fi
+
+cmd="$1"   # cp or mv
+src="$2"
+target="$3"
+
+#echo $cmd
+#echo $src
+#echo $target
+
+if [[ ! "$target" =~ ^@ ]]; then
+  echo "Target must be like @1 or @0.2"
+  exit 1
+fi
+
+if [ ! -e $src ]; then
+    echo "Path does not exist."
+    exit
+fi
+
+# Strip '@'
+pane_id="${target#@}"
+
+echo $pane_id
+
+# Get pane path
+pane_path=$(tmux display-message -t "$pane_id" -p "#{pane_current_path}")
+
+if [ -z "$pane_path" ]; then
+  echo "Could not get pane path for pane $pane_id"
+  exit 1
+fi
+
+# EXEC COMMAND
+if [ "$cmd" == "cp" ]; then
+  cp "$src" "$pane_path/"
+  echo "[${cmd^^}] $src -> $pane_path"
+elif [ "$cmd" == "mv" ]; then
+  mv "$src" "$pane_path/"
+  echo "[${cmd^^}] $src -> $pane_path"
+else
+  echo "Unknown command: $cmd"
+  exit 1
+fi
