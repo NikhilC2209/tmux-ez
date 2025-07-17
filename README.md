@@ -30,7 +30,7 @@ You can easily find out the destination pane_id using `Prefix + q`
 
 ## THINGS TO-DO
 
-- [ ] Add an option to review path before executing the command, and `-f` flag to override it
+:heavy_check_mark: ~~Add an option to review path before executing the command, and `-f` flag to override it~~ Added a `--safe` flag to review command before executing it, disabled by default. 
 - [ ] Add a simple help manual with some ASCII art
 - [ ] Add supports for more commands
 - [ ] Add support for plugin installation thru tpm
