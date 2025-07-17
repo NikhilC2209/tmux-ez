@@ -5,45 +5,84 @@ if [ ! -n "$TMUX" ]; then
     exit
 fi
 
+RED='\033[0;31m'        # Color red
+GREEN='\033[0;32m'      # Color green
+NC='\033[0m'            # No Color (reset)
+
 cmd="$1"   # cp or mv
 src="$2"
 target="$3"
+safe_mode="false"       # set safe mode to false by default
 
-#echo $cmd
-#echo $src
-#echo $target
+cmds=("cp" "mv")
 
+function run_ez() {
+    
+    local cmd="$1"
+    local src="$2"
+    local target="$3"
+    local -n allowed_cmds="$4"
+    local safe_mode="$5"
+
+    #echo $cmd
+    #echo $src
+    #echo $target
+    #echo $safe_mode
+
+    # check if the cmd is supported
+    if [[ ! "${allowed_cmds[@]}" =~ "$cmd" ]]; then
+        echo "$cmd is not a valid command with tmux-ez"
+        exit
+    fi
+
+    if [[ $safe_mode == "true" ]]; then
+        echo -e "${GREEN}[SAFE MODE]${NC} About to run: $cmd $src $target"
+        read -p "Proceed? [y/N] " confirm
+        
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            echo -e "${RED}Operation cancelled by user.${NC}"
+        return -1
+        fi
+    fi
+
+    if [ "$cmd" == "cp" ]; then
+        cp "$src" "$pane_path/"
+        echo "[COPY] $src -> $pane_path"
+    elif [ "$cmd" == "mv" ]; then
+        mv "$src" "$pane_path/"
+        echo "[MOVE] $src -> $pane_path"
+    fi 
+}
+
+# check if safe_mode flag is included in input
+if [[ "$@" == *"--safe"* ]]; then
+    safe_mode="true"        
+fi
+
+# check if target is in correct format
 if [[ ! "$target" =~ ^@ ]]; then
   echo "Target must be like @1 or @0.2"
   exit 1
 fi
 
+# check if the src path exists
 if [ ! -e $src ]; then
     echo "Path does not exist."
     exit
 fi
 
-# Strip '@'
+# Strip '@' and get pane_id
 pane_id="${target#@}"
 
-echo $pane_id
+#echo $pane_id
 
 # Get pane path
 pane_path=$(tmux display-message -t "$pane_id" -p "#{pane_current_path}")
 
+# check if var pane_path is null
 if [ -z "$pane_path" ]; then
   echo "Could not get pane path for pane $pane_id"
   exit 1
 fi
 
-# EXEC COMMAND
-if [ "$cmd" == "cp" ]; then
-  cp "$src" "$pane_path/"
-  echo "[${cmd^^}] $src -> $pane_path"
-elif [ "$cmd" == "mv" ]; then
-  mv "$src" "$pane_path/"
-  echo "[${cmd^^}] $src -> $pane_path"
-else
-  echo "Unknown command: $cmd"
-  exit 1
-fi
+run_ez $cmd $src $pane_path cmds $safe_mode 
