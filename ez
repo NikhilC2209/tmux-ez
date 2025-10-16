@@ -2,7 +2,7 @@
 
 if [ ! -n "$TMUX" ]; then
   echo "Not in a tmux session"
-  exit
+  exit -1
 fi
 
 RED='\033[0;31m'   # Color red
@@ -15,19 +15,22 @@ cmds=("cp" "mv", "cd")
 # check if the cmd is supported
 if [[ ! "${cmds[@]}" =~ "$cmd" ]]; then
   echo "$cmd is not a valid command with tmux-ez"
-  exit
+  exit -2
 fi
 
+# For debugging
 function echo_args() {
-
   for arg in "$@"; do
     echo "arg: $arg"
   done
 }
 
-get_pane_dir() {
+function get_pane_dir() {
   local pane_id="$1"
-  tmux display-message -p -t "$pane_id" "#{pane_current_path}"
+
+  # Get pane path
+  pane_path=$(tmux display-message -t "$pane_id" -p "#{pane_current_path}")
+  echo $pane_path
 }
 
 function print_safe() {
@@ -38,18 +41,48 @@ function print_safe() {
 
     if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
       echo -e "${RED}Operation cancelled by user.${NC}"
-      exit
+      exit -3
     fi
   fi
 
 }
 
-#safe_mode="false" # set safe mode to false by default
+function check_src() {
+
+  local src="$1"
+
+  # check if the src path exists
+  if [ ! -e $src ]; then
+    echo "Source file(s) do not exist."
+    exit
+  fi
+}
+
+function check_target() {
+
+  local target="$1"
+
+  # check if target is in correct format
+  if [[ ! "$target" =~ ^@ ]]; then
+    echo "Target must be like @1 or @0.2"
+    exit -4
+  fi
+
+  # get pane_path and check if it is not null
+  pane_path="$(get_pane_dir "$target")"
+
+  # check if var pane_path is null
+  if [ -z "$pane_path" ]; then
+    echo "Could not get pane path for pane id: $target"
+    exit -5
+  fi
+
+}
 
 function run_ez() {
 
   local cmd="$1"
-  safe_mode="false"
+  safe_mode="false" # set safe mode to false by default
 
   # check if safe_mode flag is included in input
   last_arg="${@: -1}"
@@ -57,28 +90,31 @@ function run_ez() {
     safe_mode="true"
   fi
 
-  if [ "$cmd" == "cd" ]; then
+  if [[ "$cmd" == "cd" ]]; then
     target="$2"
-    pane_path="$(get_pane_dir "$target")"
+    check_target $target
 
     print_safe $cmd $pane_path
 
     tmux send-keys "cd $(printf %q "$pane_path")" C-m
     echo "[CD] $src -> $pane_path"
 
-  elif [ "$cmd" == "cp" ]; then
+  elif [[ "$cmd" == "cp" ]]; then
     src="$2"
     target="$3"
-    pane_path="$(get_pane_dir "$target")"
+    check_target $target
+    check_src $src
 
     print_safe $cmd $src $pane_path
 
     cp "$src" "$pane_path/"
     echo "[COPY] $src -> $pane_path"
 
-  elif [ "$cmd" == "mv" ]; then
+  elif [[ "$cmd" == "mv" ]]; then
     src="$2"
     target="$3"
+    check_target $target
+    check_src $src
 
     print_safe $cmd $src $pane_path
 
