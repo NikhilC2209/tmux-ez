@@ -12,6 +12,10 @@ NC='\033[0m'       # No Color (reset)
 cmd="$1"
 cmds=("cp" "mv", "cd")
 
+declare -a args_arr
+declare -a flags_arr
+declare -a ez_flags_arr
+
 # check if the cmd is supported
 if [[ ! "${cmds[@]}" =~ "$cmd" ]]; then
   echo "$cmd is not a valid command with tmux-ez"
@@ -24,6 +28,8 @@ function echo_args() {
     echo "arg: $arg"
   done
 }
+
+echo_args "$@"
 
 function get_pane_dir() {
   local pane_id="$1"
@@ -46,6 +52,23 @@ function print_safe() {
   fi
 
 }
+
+populate_array() {
+  for item in "$@"; do
+    if [[ $item == *"--"* ]]; then
+      echo "ez arg: $item"
+      ez_flags_arr+=("$item")
+    elif [[ $item == *"-"* ]]; then
+      echo "cmd arg: $item"
+      flags_arr+=("$item")
+    else
+      echo "args: $item"
+      args_arr+=("$item")
+    fi
+  done
+}
+
+populate_array "$@"
 
 function check_src() {
 
@@ -81,14 +104,18 @@ function check_target() {
 
 function run_ez() {
 
-  local cmd="$1"
+  local cmd="${args_arr[0]}"
   safe_mode="false" # set safe mode to false by default
 
+  for arg in "${ez_flags_arr[@]}"; do
+    case "$arg" in
+    --safe) safe_mode="true" ;;
+    *) ;;
+    esac
+  done
+
+  arg_str="${flags_arr[@]}"
   # check if safe_mode flag is included in input
-  last_arg="${@: -1}"
-  if [[ $last_arg == *"--safe"* ]]; then
-    safe_mode="true"
-  fi
 
   if [[ "$cmd" == "cd" ]]; then
     target="$2"
@@ -100,25 +127,25 @@ function run_ez() {
     echo "[CD] $src -> $pane_path"
 
   elif [[ "$cmd" == "cp" ]]; then
-    src="$2"
-    target="$3"
+    src="${args_arr[1]}"
+    target="${args_arr[2]}"
     check_target $target
     check_src $src
 
-    print_safe $cmd $src $pane_path
+    print_safe $cmd $src $pane_path $arg_str
 
-    cp "$src" "$pane_path/"
+    cp "$src" "$pane_path/" $arg_str
     echo "[COPY] $src -> $pane_path"
 
   elif [[ "$cmd" == "mv" ]]; then
-    src="$2"
-    target="$3"
+    src="${args_arr[1]}"
+    target="${args_arr[2]}"
     check_target $target
     check_src $src
 
-    print_safe $cmd $src $pane_path
+    print_safe $cmd $src $pane_path $arg_str
 
-    mv "$src" "$pane_path/"
+    mv "$src" "$pane_path/" $arg_str
     echo "[MOVE] $src -> $pane_path"
 
   else
@@ -126,4 +153,4 @@ function run_ez() {
   fi
 }
 
-run_ez "$@"
+run_ez
