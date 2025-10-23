@@ -29,7 +29,7 @@ function echo_args() {
   done
 }
 
-echo_args "$@"
+#echo_args "$@"
 
 function get_pane_dir() {
   local pane_id="$1"
@@ -56,13 +56,13 @@ function print_safe() {
 populate_array() {
   for item in "$@"; do
     if [[ $item == *"--"* ]]; then
-      echo "ez arg: $item"
+      #echo "ez arg: $item"
       ez_flags_arr+=("$item")
     elif [[ $item == *"-"* ]]; then
-      echo "cmd arg: $item"
+      #echo "cmd arg: $item"
       flags_arr+=("$item")
     else
-      echo "args: $item"
+      #echo "args: $item"
       args_arr+=("$item")
     fi
   done
@@ -72,13 +72,12 @@ populate_array "$@"
 
 function check_src() {
 
-  local src="$1"
-
-  # check if the src path exists
-  if [ ! -e $src ]; then
-    echo "Source file(s) do not exist."
-    exit
-  fi
+  for path in "${args_arr[@]}"; do
+    if [[ ! -e $path ]]; then
+      echo "Source file(s) do not exist."
+      exit -6
+    fi
+  done
 }
 
 function check_target() {
@@ -105,6 +104,7 @@ function check_target() {
 function run_ez() {
 
   local cmd="${args_arr[0]}"
+  unset 'args_arr[0]'
   safe_mode="false" # set safe mode to false by default
 
   for arg in "${ez_flags_arr[@]}"; do
@@ -115,7 +115,6 @@ function run_ez() {
   done
 
   arg_str="${flags_arr[@]}"
-  # check if safe_mode flag is included in input
 
   if [[ "$cmd" == "cd" ]]; then
     target="$2"
@@ -127,26 +126,32 @@ function run_ez() {
     echo "[CD] $src -> $pane_path"
 
   elif [[ "$cmd" == "cp" ]]; then
-    src="${args_arr[1]}"
-    target="${args_arr[2]}"
+    target="${args_arr[-1]}"
+    unset 'args_arr[-1]'
+
+    src_str="${args_arr[@]}"
+
     check_target $target
-    check_src $src
+    check_src
 
-    print_safe $cmd $src $pane_path $arg_str
+    print_safe $cmd $src_str $pane_path $arg_str
 
-    cp "$src" "$pane_path/" $arg_str
-    echo "[COPY] $src -> $pane_path"
+    cp $src_str "$pane_path/" $arg_str
+    echo "[COPY] $src_str -> $pane_path"
 
   elif [[ "$cmd" == "mv" ]]; then
-    src="${args_arr[1]}"
     target="${args_arr[2]}"
+    unset 'args_arr[-1]'
+
+    src_str="${args_arr[@]}"
+
     check_target $target
-    check_src $src
+    check_src
 
-    print_safe $cmd $src $pane_path $arg_str
+    print_safe $cmd $src_str $pane_path $arg_str
 
-    mv "$src" "$pane_path/" $arg_str
-    echo "[MOVE] $src -> $pane_path"
+    mv $src_str "$pane_path/" $arg_str
+    echo "[MOVE] $src_str -> $pane_path"
 
   else
     echo "Wrong command"
