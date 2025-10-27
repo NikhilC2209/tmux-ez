@@ -55,10 +55,10 @@ function print_safe() {
 
 populate_array() {
   for item in "$@"; do
-    if [[ $item == *"--"* ]]; then
+    if [[ $item =~ ^-- ]]; then
       #echo "ez arg: $item"
       ez_flags_arr+=("$item")
-    elif [[ $item == *"-"* ]]; then
+    elif [[ $item =~ ^- ]]; then
       #echo "cmd arg: $item"
       flags_arr+=("$item")
     else
@@ -117,7 +117,9 @@ function run_ez() {
   arg_str="${flags_arr[@]}"
 
   if [[ "$cmd" == "cd" ]]; then
-    target="$2"
+    target="${args_arr[-1]}"
+    unset 'args_arr[-1]'
+
     check_target $target
 
     print_safe $cmd $pane_path
