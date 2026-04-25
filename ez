@@ -84,9 +84,9 @@ function check_target() {
 
   local target="$1"
 
-  # check if target is in correct format
-  if [[ ! "$target" =~ ^@ ]]; then
-    echo "Target must be like @1 or @0.2"
+  # Accept a tmux pane ID (%1) or a target-pane expression (session:window.pane).
+  if [[ ! "$target" =~ ^%[0-9]+$ ]] && [[ ! "$target" =~ [:.] ]]; then
+    echo "Target must be a tmux pane target like %1 or session:window.pane"
     exit -4
   fi
 
